@@ -1,2 +1,2 @@
---require("src.EntryPoint")
-require("src.EntityGame")
+require("src.EntryPoint")
+--require("src.alternative.EntityGame")

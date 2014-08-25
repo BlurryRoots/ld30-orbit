@@ -56,36 +56,53 @@ function SolarSystem:new(centerX, centerY)
 
 	nobj.foreach = function (self, callback)
 		for i, v in pairs(self.objectList) do
-			callback(i, v)
+			callback(self, i, v)
 		end
 	end
 
 	nobj.update = function (self, dt)
-		self:foreach(function (i, v)
+		self:foreach(function (self, i, v)
 			v:update(dt)
+
+			if v.node ~= nil then
+				v.node:update(dt)
+
+				if v.node.status.hacked then
+					if table.getn(v.nodeList) == 0 then
+						return
+					end
+
+					for _,childName in pairs(v.nodeList) do
+						local child = self:getObjectByName(childName)
+						if child.node ~= nil then
+							child.node.status.hackable = true
+						end
+					end
+				end
+			end
 		end)
 	end
 
-	nobj.renderNodes = function (self, start, nodes)
+	nobj.renderConnections = function (self, start, nodes)
 		local n = table.getn(nodes)
 		if n == 0 then
 			return false
 		end
 
 		for i,v in ipairs(nodes) do
-			local node = self:getObjectByName(v)
-			love.graphics.line(start.x, start.y, node.x, node.y)
-			self:renderNodes(node, node.nodeList)
+			local object = self:getObjectByName(v)
+
+			love.graphics.setLineWidth(42)
+			if object.node.status.hackable then
+				love.graphics.setColor(0, 0, 255)
+			end
+			love.graphics.line(start.x, start.y, object.x, object.y)
+			love.graphics.setColor(255, 255, 255)
+
+			self:renderConnections(object, object.nodeList)
 		end
 
 		return true
-	end
-
-	nobj.draw = function (self)
-		self:foreach(function (i, v)
-			v:draw()
-			self:renderNodes(v, v.nodeList)
-		end)		
 	end
 
 	return nobj

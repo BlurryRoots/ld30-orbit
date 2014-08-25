@@ -1,3 +1,5 @@
+require("src.Node")
+
 SpaceObject = {}
 
 function SpaceObject:new(id, gfx, scale, orbit, orbitRadius, orbitSpeed, rotationSpeed)
@@ -24,6 +26,8 @@ function SpaceObject:new(id, gfx, scale, orbit, orbitRadius, orbitSpeed, rotatio
 	nobj.rotationSpeed = rotationSpeed
 
 	nobj.green = true
+
+	nobj.node = nil
 
 	-- methods
 	nobj.setAngle = function(self, angle)

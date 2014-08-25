@@ -1,9 +1,9 @@
 require("lib.lclass")
 require("lib.ecs.System")
 
-class "RenderPlanetSystem" ("System")
+class "RenderMenuSystem" ("System")
 
-function RenderPlanetSystem:RenderPlanetSystem(assetManager)
+function RenderMenuSystem:RenderMenuSystem(assetManager)
 	self.predicate = {
 		"PositionComponent",
 		"PlanetComponent"
@@ -12,7 +12,9 @@ function RenderPlanetSystem:RenderPlanetSystem(assetManager)
 	self.assetManager = assetManager
 end
 
-function RenderPlanetSystem:onRender(candidates, camera)
+function RenderMenuSystem:onRender(database, camera)
+	local candidates = database:filter(self.predicate)
+	
 	if table.getn(candidates) == 0 then
 		error("nonono")
 	end

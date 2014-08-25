@@ -60,8 +60,12 @@ local selector = {
 	end
 }
 
+local dfont = nil
+
 --
 function love.load()
+	dfont = love.graphics.newFont("gfx/tekn.ttf", 128)
+
 	local prefix = "gfx/256x256"
 
 	menu.img = love.graphics.newImage(prefix.."/Interface/icons.png")
@@ -73,13 +77,16 @@ function love.load()
 
 	system = SolarSystem:new(0, 0)
 
+	local e = nil
+
 	system:createCenterOrbiter(
 		"sun",
-		prefix.."/Planets/sun.png", 1,
+		prefix.."/Planets/sun.png", 2,
 		0, 0,
 		0,
 		{}
 	)
+
 	system:createCenterOrbiter(
 		"planet1",
 		prefix.."/Planets/planet1.png", 1,
@@ -87,6 +94,11 @@ function love.load()
 		8,
 		{"planet2", "planet3"}
 	)
+	e = system:getObjectByName("planet1")
+	e.node = Node(0.01, 2)
+	e.node.status.available = true
+	e.node.status.hackable = true
+
 	system:createOrbiter(
 		"planet_moon",
 		prefix.."/Moons/grey.png", 0.4,
@@ -102,6 +114,9 @@ function love.load()
 		5,
 		{}
 	)
+	e = system:getObjectByName("planet2")
+	e.node = Node(0.1, 1)
+	e.node.status.available = true
 
 	system:createCenterOrbiter(
 		"planet3",
@@ -110,6 +125,10 @@ function love.load()
 		5,
 		{"planet4"}
 	)
+	e = system:getObjectByName("planet3")
+	e.node = Node(0.1, 1)
+	e.node.status.available = true
+
 	system:createOrbiter(
 		"planet3_moon",
 		prefix.."/Moons/grey.png", 0.4,
@@ -125,6 +144,9 @@ function love.load()
 		12,
 		{"planet5"}
 	)
+	e = system:getObjectByName("planet4")
+	e.node = Node(0.1, 1)
+	e.node.status.available = true
 
 	system:createCenterOrbiter(
 		"planet5",
@@ -133,8 +155,11 @@ function love.load()
 		20,
 		{}
 	)
+	e = system:getObjectByName("planet5")
+	e.node = Node(0.1, 1)
+	e.node.status.available = true
 
-	system:foreach(function (i, v)
+	system:foreach(function (self, i, v)
 		v:load()
 	end)
 
@@ -171,30 +196,66 @@ function love.draw()
 		love.graphics.translate(camera.x, camera.y)
 
 		love.graphics.push()
-			system:draw()
+			system:foreach(function (self, i, v)
+				self:renderConnections(v, v.nodeList)
+			end)
 		love.graphics.pop()
 
-		if selector.attachedTo ~= nil then
-			love.graphics.push()
-				love.graphics.draw(
-					selector.outer, 
-					selector.attachedTo.x, selector.attachedTo.y, 
-					0, 
-					selector.attachedTo.scale, selector.attachedTo.scale, 
-					selector.outer:getWidth() / 2, selector.outer:getHeight() / 2
+		love.graphics.push()
+			system:foreach(function (self, i, v)
+				v:draw()
+			end)
+		love.graphics.pop()
+
+		love.graphics.push()
+			system:foreach(function (self, i, v)
+				if v.node == nil then
+					return
+				end
+
+				love.graphics.setFont(dfont)
+				love.graphics.print(
+					v.node.difficulty,
+					v.x + selector.inner:getWidth() / 2 * v.scale,
+					v.y - selector.inner:getHeight() / 2 * v.scale
 				)
-				love.graphics.draw(
-					selector.inner, 
-					selector.attachedTo.x, selector.attachedTo.y, 
-					0, 
-					selector.attachedTo.scale, selector.attachedTo.scale, 
-					selector.inner:getWidth() / 2, selector.inner:getHeight() / 2
-				)
-			love.graphics.pop()
-		end
-		if menu.attachedTo ~= nil then
-			love.graphics.draw(menu.img, menu.attachedTo.x, menu.attachedTo.y)
-		end
+
+				if v.node.status.hacked then
+					love.graphics.draw(
+						selector.outer,
+						v.x, v.y, 
+						0,
+						v.scale * 0.8, v.scale * 0.8, 
+						selector.outer:getWidth() / 2, selector.outer:getHeight() / 2
+					)
+					love.graphics.draw(
+						selector.inner,
+						v.x, v.y, 
+						0,
+						v.scale, v.scale, 
+						selector.inner:getWidth() / 2, selector.inner:getHeight() / 2
+					)
+				end
+
+				if v.node.status.fortified then
+					love.graphics.draw(
+						selector.outer,
+						v.x, v.y, 
+						0,
+						v.scale, v.scale, 
+						selector.outer:getWidth() / 2, selector.outer:getHeight() / 2
+					)
+				end
+
+				if v.node.status.selected then
+					love.graphics.draw(
+						menu.img,
+						v.x + v.img:getWidth() / 2,
+						v.y + v.img:getHeight() / 2
+					)
+				end
+			end)		
+		love.graphics.pop()
 	love.graphics.pop()
 end
 
@@ -205,15 +266,27 @@ end
 
 function love.mousereleased(x, y, button)
 	if button == "l" then
-		if menu.attachedTo ~= nil and menu:contains(x, y, camera) then
-			print("jojwojwoj")
-		end
+		system:foreach(function(self, i,v)
+			if v.node ~= nil then
+				if v:contains(x, y, camera) then
+					v.node:toggleSelect()
+				else
+					v.node:unselect()					
+				end
+			end
+		end)
+	end
 
-		system:foreach(function(i,v)
-			if v:contains(x, y, camera) then
-				--v:onClick()
-				menu.attachedTo = v
-				selector.attachedTo = v
+	if button == "r" then
+		system:foreach(function(self, i,v)
+			if v:contains(x, y, camera) and v.node ~= nil then
+				if v.node.status.selected then
+					if v.node.status.hacked then
+						v.node:fortify()
+					else
+						v.node:hack()
+					end
+				end
 			end
 		end)
 	end

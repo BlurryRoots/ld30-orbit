@@ -1,14 +1,18 @@
 require("lib.ecs.Entity")
-require("lib.ecs.PositionComponent")
-require("lib.ecs.RotationComponent")
-require("lib.ecs.OrbitComponent")
-require("lib.ecs.PlanetComponent")
+require("lib.ecs.Database")
 
-require("src.RenderPlanetSystem")
+
+require("src.alternative.components.PositionComponent")
+require("src.alternative.components.RotationComponent")
+require("src.alternative.components.OrbitComponent")
+require("src.alternative.components.PlanetComponent")
+
+require("src.alternative.RenderPlanetSystem")
+require("src.alternative.SpaceObjectInputSystem")
 
 require("src.Camera")
 
-local database = {}
+local database = nil
 local assetManager = {
 	images = {},
 	load = function(self, path)
@@ -16,10 +20,13 @@ local assetManager = {
 	end,	
 	get = function(self, path)
 		return self.images[path]
-	end,
+	end
+}
+local eventManager = {
 }
 
 local rs = nil
+local us = nil
 
 
 --[[
@@ -37,10 +44,13 @@ local rs = nil
 
 
 function love.load()
+	database = Database()
+
 	assetManager:load("gfx/256x256/Planets/planet1.png")
 	assetManager:load("gfx/256x256/Planets/planet2.png")
 
 	rs = RenderPlanetSystem(assetManager)
+	us = SpaceObjectInputSystem(assetManager)
 
 	local e = nil
 
@@ -48,17 +58,18 @@ function love.load()
 	e:addComponent(PositionComponent(100, 21))
 	e:addComponent(RotationComponent(1000))
 	e:addComponent(PlanetComponent("gfx/256x256/Planets/planet1.png"))
-	table.insert(database, e)
+	database:add(e)
 
 	e = Entity()
 	e:addComponent(PositionComponent(42, 300))
 	e:addComponent(PlanetComponent("gfx/256x256/Planets/planet2.png"))
 	e:addComponent(RotationComponent(500))
-	table.insert(database, e)
+	database:add(e)
 end
 
 function love.update(dt)
 	camera:update(dt)
+	us:onUpdate(database, camera, dt)
 end
 
 function love.draw()
@@ -67,4 +78,5 @@ end
 
 function love.mousepressed(x, y, button)
 	camera:onMouseButtonDown(button)
+	us:mousepressed(x, y, button)
 end

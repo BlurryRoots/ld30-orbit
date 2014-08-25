@@ -55,7 +55,6 @@ camera.zoomOut = function (self)
 	self:scale(-self.zoom.speed)
 end
 camera.onMouseButtonDown = function (self, button)
-	print("speed at "..camera.zoom.speed)
 	if button == "wu" then
 		self:zoomIn()
 		print("zoom at "..camera.zoom.value)
