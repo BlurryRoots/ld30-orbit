@@ -4,6 +4,49 @@ require("src.SpaceObject")
 require("src.SolarSystem")
 require("src.EventManager")
 
+ai = {
+	home = nil,
+	active = false,
+	activate = function(self)
+		self.active = true
+		print("activating ai")
+		eventManager:push({
+			typeName = "ai.activated",
+		})
+	end,
+	update = function(self, dt)
+		if not self.active then
+			return
+		end
+		local r = self:FUCK(self.home, self.home.nodeList)
+	end,
+	FUCK = function(self, start, nodes)
+		local n = table.getn(nodes)
+		if n == 0 then
+			return false
+		end
+		print("about to FUCK")
+		for i,v in ipairs(nodes) do
+			local object = system:getObjectByName(v)
+
+			if object.node.status.traced then
+				--
+				self:FUCK(object, object.nodeList)
+			else
+				--
+				if not object.node.status.beingTraced then
+					object.node.status.beingTraced = true
+					eventManager:push({
+						typeName = "trace.started"
+					})
+				end
+			end
+
+		end
+
+		return true
+	end
+}
 
 player = {
 	img = nil,
@@ -13,9 +56,11 @@ player = {
 		if event.typeName == "player.detected" and not self.detected then
 			self.detected = true
 			sounds["detected"]:play()
+			ai:activate()
 		end
 	end
 }
+
 sounds = {}
 
 eventManager = nil
@@ -69,8 +114,8 @@ local selector = {
 
 		local cw = self.attachedTo:getWidth() * camera.zoom.value
 		local ch = self.attachedTo:getHeight() * camera.zoom.value
-		local cx = self.attachedTo:getX() * camera.zoom.value + camera.x * camera.zoom.value
-		local cy = self.attachedTo:getY() * camera.zoom.value + camera.y * camera.zoom.value
+		local cx = (self.attachedTo:getX() + camera.x) * camera.zoom.value
+		local cy = (self.attachedTo:getY() + camera.y) * camera.zoom.value
 
 		local hasx = x >= cx and x <= cx + cw
 		local hasy = y >= cy and y <= cy + ch
@@ -90,6 +135,56 @@ local debugHandler = {
 	end
 }
 
+local bonusHandler = {
+	handle = function(self, event)
+		if event.typeName == "hack.finished" then
+			if event.node.category == Node.Category.Storage then
+				eventManager:push({
+					typeName = "difficulty.decrease",
+					value = 1
+				})
+			end
+		end
+		if event.typeName == "difficulty.decrease" then
+			print("decreasing difficulty")
+			system:foreach(function (self, i, v)
+				if v.node ~= nil then
+					v.node.difficulty = v.node.difficulty - event.value
+					if v.node.difficulty < 0 then
+						v.node.difficulty = 0
+					end
+				end
+			end)
+		end
+	end
+}
+
+local winningHandler = {
+	state = "undecided",
+	targetsOnMap = 1,
+	targetsHacked = 0,
+	handle = function(self, event)
+		if event.typeName == "hack.finished" then
+			if event.node.category == Node.Category.Firewall then
+				self.state = "win"
+				sounds["win"]:play()
+			end
+			if event.node.category == Node.Category.Target then
+				self.targetsHacked = self.targetsHacked + 1
+				if self.targetsHacked >= self.targetsOnMap then
+					self.state = "win"
+					sounds["win"]:play()
+				end
+			end			
+		end
+		if event.typeName == "hack.finished.ai" then
+			if event.node.category == Node.Category.Home then
+				self.state = "fail"
+			end
+		end
+	end
+}
+
 --
 function love.load()
 	eventManager = EventManager()
@@ -97,12 +192,20 @@ function love.load()
 	eventManager:subscribe("player.detected", debugHandler)
 	eventManager:subscribe("hack.started", debugHandler)
 	eventManager:subscribe("hack.finished", debugHandler)
+	eventManager:subscribe("trace.started", debugHandler)
+	eventManager:subscribe("trace.finished", debugHandler)
+	eventManager:subscribe("ai.activated", debugHandler)
+	
+	eventManager:subscribe("hack.finished", bonusHandler)
+	eventManager:subscribe("difficulty.decrease", bonusHandler)	
+
+	eventManager:subscribe("hack.finished", winningHandler)
+	eventManager:subscribe("hack.finished.ai", winningHandler)
+	
 	eventManager:subscribe("player.detected", player)
 
 	dfont = love.graphics.newFont("gfx/tekn.ttf", 128)
 	ffont = love.graphics.newFont("gfx/tekn.ttf", 96)
-
-	local prefix = "gfx/256x256"
 
 	menu.img = love.graphics.newImage("gfx/Interface/icons.png")
 
@@ -116,6 +219,9 @@ function love.load()
 	sounds["click"] = love.audio.newSource("sfx/173328__soundnimja__blip-1.wav", "static")
 	sounds["detected"] = love.audio.newSource("sfx/193943__theevilsocks__menu-select.wav", "static")
 	sounds["success"] = love.audio.newSource("sfx/243020__plasterbrain__game-start.ogg", "static")
+	--sounds["win"] = love.audio.newSource("sfx/52908__m-red__winning.mp3", "static")
+	sounds["win"] = love.audio.newSource("sfx/171670__fins__success-2.wav", "static")
+	sounds["fail"] = love.audio.newSource("sfx/159408__noirenex__lifelost.wav", "static")
 
 	system = SolarSystem:new(0, 0)
 
@@ -143,8 +249,8 @@ function love.load()
 
 	system:createOrbiter(
 		"planet_moon",
-		"gfx/Moons/grey.png", 0.4,
-		"planet1", 300, 8,
+		"gfx/Moons/moon.png", 0.4,
+		"planet1", 250, 8,
 		-10,
 		{}
 	)
@@ -154,10 +260,10 @@ function love.load()
 		"gfx/Planets/planet2.png", 1,
 		1200, 40,
 		5,
-		{}
+		{"planet5"}
 	)
 	e = system:getObjectByName("planet2")
-	e.node = Node(0.9, 1, Node.Category.Storage)
+	e.node = Node(1, 1, Node.Category.Storage)
 	e.node.status.available = true
 
 	system:createCenterOrbiter(
@@ -173,8 +279,8 @@ function love.load()
 
 	system:createOrbiter(
 		"planet3_moon",
-		"gfx/Moons/grey.png", 0.4,
-		"planet3", 300, 4,
+		"gfx/Moons/moon.png", 0.4,
+		"planet3", 250, 4,
 		3,
 		{}
 	)
@@ -184,7 +290,7 @@ function love.load()
 		"gfx/Planets/planet5.png", 1,
 		2100, 52,
 		12,
-		{"planet5"}
+		{}
 	)
 	e = system:getObjectByName("planet4")
 	e.node = Node(0.1, 1, Node.Category.Target)
@@ -200,6 +306,9 @@ function love.load()
 	e = system:getObjectByName("planet5")
 	e.node = Node(0.1, 1, Node.Category.Firewall)
 	e.node.status.available = true
+	e.node.status.traced = true
+	-- set start point for ai
+	ai.home = e
 
 	system:createCenterOrbiter(
 		"player",
@@ -236,6 +345,16 @@ end
 
 --
 function love.update(dt)
+	if winningHandler.state == "win" then
+		--
+		love.graphics.print("WIN")
+		isRunnig = false
+	elseif winningHandler.state == "fail" then
+		--
+		love.graphics.print("FAIL")
+		isRunnig = false
+	end
+
 	if not isRunnig then
 		return
 	end
@@ -243,13 +362,25 @@ function love.update(dt)
 	eventManager:update(dt)
 	camera:update(dt)
 	system:update(dt)
+	ai:update(dt)
 end
 
 function love.draw()
+	local ww = love.window.getWidth()
+	local wh = love.window.getHeight()
+
+	if winningHandler.state == "win" then
+		--
+		love.graphics.print("WIN", ww / 2, wh / 2)
+		return
+	elseif winningHandler.state == "fail" then
+		--
+		love.graphics.print("FAIL", ww / 2, wh / 2)
+		return
+	end
+
 	local bgw = background:getWidth()
 	local bgh = background:getHeight()
-	local ww = love.window.getWidth()
-	local wh = love.window.getWidth()
 
 	local r, g, b, a = love.graphics.getColor()
 	local font = love.graphics.getFont()
@@ -300,6 +431,14 @@ function love.draw()
 				)
 
 				love.graphics.setColor(r, g, b, a)
+
+				if v.node.status.beingHacked or v.node.status.beingFortified then
+					love.graphics.print(
+						math.floor(math.abs(v.node.progress * 100)).."%",
+						v.x - selector.inner:getWidth() / 2 * v.scale,
+						v.y - selector.inner:getHeight() / 2 * v.scale
+					)
+				end
 
 				if v.node.status.hacked then
 					love.graphics.draw(

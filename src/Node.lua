@@ -18,15 +18,34 @@ function Node:Node(chance, difficulty, category)
 		selected = false,
 		beingHacked = false,
 		hacked = false,
-		fortified = false
+		beingFortified = false,
+		fortified = false,
+		beingTraced = false,
+		traced = false
 	}
 	
 	self.detectionChance = chance
 	self.difficulty = difficulty
+	self.hardening = difficulty
 
 	self.category = category
 
 	self.accu = 0
+	self.progress = 0
+
+	self.aiaccu = 0
+	self.aiprogress = 0
+end
+
+-- function used by ai
+function Node:trace()
+	print("checking")
+	if not self.status.beingTraced and not self.status.traced then
+		self.status.beingTraced = true
+		eventManager:push({
+			typeName = "trace.started"
+		})
+	end
 end
 
 function Node:unselect()
@@ -64,6 +83,7 @@ function Node:update(dt)
 			self.status.beingHacked = false
 			self.status.hacked = true
 			self.accu = 0
+			self.progress = 0
 
 			-- roll dice to determine if you're caught
 			local r = love.math.random()
@@ -75,9 +95,11 @@ function Node:update(dt)
 
 			-- send finish event
 			eventManager:push({
-				typeName = "hack.finished"
+				typeName = "hack.finished",
+				node = self
 			})
 		else
+			self.progress = self.accu / self.difficulty
 			self.accu = self.accu + dt
 		end
 	elseif self.status.beingFortified then
@@ -85,7 +107,9 @@ function Node:update(dt)
 			-- reset stuff
 			self.status.beingFortified = false
 			self.status.fortified = true
+			self.hardening = self.hardening + 1
 			self.accu = 0
+			self.progress = 0
 
 			-- roll dice to determine if you're caught
 			local r = love.math.random()
@@ -100,11 +124,29 @@ function Node:update(dt)
 				typeName = "fortify.finished"
 			})
 		else
+			self.progress = self.accu / self.difficulty
 			self.accu = self.accu + dt
 		end
 	end
 
-	
+	if self.status.beingTraced then
+		print("tracing..")
+		if self.aiaccu >= self.hardening then
+			-- reset stuff
+			self.status.beingTraced = false
+			self.status.traced = true
+			self.aiaccu = 0
+			self.aiprogress = 0
+
+			-- send finish event
+			eventManager:push({
+				typeName = "trace.finished"
+			})
+		else
+			self.aiprogress = self.aiaccu / self.hardening
+			self.aiaccu = self.aiaccu + dt
+		end
+	end	
 end
 
 function Node:render(camera)

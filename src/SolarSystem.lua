@@ -30,6 +30,7 @@ function SolarSystem:new(centerX, centerY)
 			rotationSpeed
 		)
 		sobj.nodeList = nodeList
+		sobj.reNodeList = reNodeList
 		local r = love.math.random(2 * math.pi)
 		sobj:setAngle(r)
 
@@ -48,6 +49,7 @@ function SolarSystem:new(centerX, centerY)
 			rotationSpeed
 		)
 		sobj.nodeList = nodeList
+		sobj.reNodeList = reNodeList
 		local r = love.math.random(2 * math.pi)
 		sobj:setAngle(r)
 
@@ -94,10 +96,12 @@ function SolarSystem:new(centerX, centerY)
 
 			love.graphics.setLineWidth(42)
 			if object.node.status.hackable then
-				love.graphics.setColor(0, 0, 255)
+				love.graphics.setColor(255, 255, 255, 255)
+			else
+				love.graphics.setColor(255, 255, 255, 32)
 			end
 			love.graphics.line(start.x, start.y, object.x, object.y)
-			love.graphics.setColor(255, 255, 255)
+			love.graphics.setColor(255, 255, 255, 255)
 
 			self:renderConnections(object, object.nodeList)
 		end
