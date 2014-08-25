@@ -2,6 +2,25 @@
 require("src.Camera")
 require("src.SpaceObject")
 require("src.SolarSystem")
+require("src.EventManager")
+
+
+player = {
+	img = nil,
+	detected = false,
+	handle = function(self, event)
+		print("handling event "..event.typeName)
+		if event.typeName == "player.detected" and not self.detected then
+			self.detected = true
+			sounds["detected"]:play()
+		end
+	end
+}
+sounds = {}
+
+eventManager = nil
+
+isRunnig = true
 
 function each(l, c)
 	for i,v in pairs(l) do
@@ -60,20 +79,43 @@ local selector = {
 	end
 }
 
+
+
 local dfont = nil
+local ffont = nil
+
+local debugHandler = {
+	handle = function(self, event)
+		print("handling "..event.typeName)
+	end
+}
 
 --
 function love.load()
+	eventManager = EventManager()
+
+	eventManager:subscribe("player.detected", debugHandler)
+	eventManager:subscribe("hack.started", debugHandler)
+	eventManager:subscribe("hack.finished", debugHandler)
+	eventManager:subscribe("player.detected", player)
+
 	dfont = love.graphics.newFont("gfx/tekn.ttf", 128)
+	ffont = love.graphics.newFont("gfx/tekn.ttf", 96)
 
 	local prefix = "gfx/256x256"
 
-	menu.img = love.graphics.newImage(prefix.."/Interface/icons.png")
+	menu.img = love.graphics.newImage("gfx/Interface/icons.png")
 
-	selector.inner = love.graphics.newImage(prefix.."/Interface/inner_ring.png")
-	selector.outer = love.graphics.newImage(prefix.."/Interface/outer_ring.png")
+	selector.inner = love.graphics.newImage("gfx/Interface/inner_ring.png")
+	selector.outer = love.graphics.newImage("gfx/Interface/outer_ring.png")
 
 	background = love.graphics.newImage("gfx/starfield.jpg")
+
+	sounds["fortify"] = love.audio.newSource("sfx/171499__fins__logged-in.wav", "static")
+	sounds["hack"] = love.audio.newSource("sfx/172203__fins__menu-button.wav", "static")
+	sounds["click"] = love.audio.newSource("sfx/173328__soundnimja__blip-1.wav", "static")
+	sounds["detected"] = love.audio.newSource("sfx/193943__theevilsocks__menu-select.wav", "static")
+	sounds["success"] = love.audio.newSource("sfx/243020__plasterbrain__game-start.ogg", "static")
 
 	system = SolarSystem:new(0, 0)
 
@@ -81,7 +123,7 @@ function love.load()
 
 	system:createCenterOrbiter(
 		"sun",
-		prefix.."/Planets/sun.png", 2,
+		"gfx/Planets/sun.png", 2,
 		0, 0,
 		0,
 		{}
@@ -89,19 +131,19 @@ function love.load()
 
 	system:createCenterOrbiter(
 		"planet1",
-		prefix.."/Planets/planet1.png", 1,
+		"gfx/Planets/planet1.png", 1,
 		600, 15,
 		8,
 		{"planet2", "planet3"}
 	)
 	e = system:getObjectByName("planet1")
-	e.node = Node(0.01, 2)
+	e.node = Node(0.01, 2, Node.Category.Normal)
 	e.node.status.available = true
 	e.node.status.hackable = true
 
 	system:createOrbiter(
 		"planet_moon",
-		prefix.."/Moons/grey.png", 0.4,
+		"gfx/Moons/grey.png", 0.4,
 		"planet1", 300, 8,
 		-10,
 		{}
@@ -109,29 +151,29 @@ function love.load()
 
 	system:createCenterOrbiter(
 		"planet2",
-		prefix.."/Planets/planet2.png", 1,
+		"gfx/Planets/planet2.png", 1,
 		1200, 40,
 		5,
 		{}
 	)
 	e = system:getObjectByName("planet2")
-	e.node = Node(0.1, 1)
+	e.node = Node(0.9, 1, Node.Category.Storage)
 	e.node.status.available = true
 
 	system:createCenterOrbiter(
 		"planet3",
-		prefix.."/Planets/planet4.png", 1,
+		"gfx/Planets/planet4.png", 1,
 		1600, 45,
 		5,
 		{"planet4"}
 	)
 	e = system:getObjectByName("planet3")
-	e.node = Node(0.1, 1)
+	e.node = Node(0.1, 1, Node.Category.Utility)
 	e.node.status.available = true
 
 	system:createOrbiter(
 		"planet3_moon",
-		prefix.."/Moons/grey.png", 0.4,
+		"gfx/Moons/grey.png", 0.4,
 		"planet3", 300, 4,
 		3,
 		{}
@@ -139,25 +181,39 @@ function love.load()
 
 	system:createCenterOrbiter(
 		"planet4",
-		prefix.."/Planets/planet5.png", 1,
+		"gfx/Planets/planet5.png", 1,
 		2100, 52,
 		12,
 		{"planet5"}
 	)
 	e = system:getObjectByName("planet4")
-	e.node = Node(0.1, 1)
+	e.node = Node(0.1, 1, Node.Category.Target)
 	e.node.status.available = true
 
 	system:createCenterOrbiter(
 		"planet5",
-		prefix.."/Planets/planet6.png", 1,
+		"gfx/Planets/planet6.png", 1,
 		2600, 64,
 		20,
 		{}
 	)
 	e = system:getObjectByName("planet5")
-	e.node = Node(0.1, 1)
+	e.node = Node(0.1, 1, Node.Category.Firewall)
 	e.node.status.available = true
+
+	system:createCenterOrbiter(
+		"player",
+		"gfx/Interface/spaceship.png", 1,
+		3000, -64,
+		32,
+		{"planet1"}
+	)
+	e = system:getObjectByName("player")
+	--e.rot = -math.pi / 2
+	e.node = Node(0.0, 0, Node.Category.Home)
+	e.node.status.available = true
+	e.node.status.hacked = true
+	e.node.status.fortified = true
 
 	system:foreach(function (self, i, v)
 		v:load()
@@ -171,6 +227,7 @@ end
 
 --
 function love.focus(f)
+	isRunnig = f
 end
 
 function love.resize(w, h)
@@ -179,6 +236,11 @@ end
 
 --
 function love.update(dt)
+	if not isRunnig then
+		return
+	end
+
+	eventManager:update(dt)
 	camera:update(dt)
 	system:update(dt)
 end
@@ -188,6 +250,9 @@ function love.draw()
 	local bgh = background:getHeight()
 	local ww = love.window.getWidth()
 	local wh = love.window.getWidth()
+
+	local r, g, b, a = love.graphics.getColor()
+	local font = love.graphics.getFont()
 
 	love.graphics.draw(background, 0, 0, 0, ww / bgw, wh / bgh)
 
@@ -214,11 +279,27 @@ function love.draw()
 				end
 
 				love.graphics.setFont(dfont)
+
 				love.graphics.print(
 					v.node.difficulty,
 					v.x + selector.inner:getWidth() / 2 * v.scale,
 					v.y - selector.inner:getHeight() / 2 * v.scale
 				)
+
+				if v.node.category == Node.Category.Target then
+					love.graphics.setColor(255, 255, 64, 255)
+				elseif v.node.category == Node.Category.Firewall then
+					love.graphics.setColor(255, 0, 0, 255)
+				else					
+					love.graphics.setColor(0, 128, 128, 255)
+				end
+				love.graphics.print(
+					v.node.category,
+					v.x - selector.inner:getWidth() / 2 * v.scale,
+					v.y + selector.inner:getHeight() / 2 * v.scale
+				)
+
+				love.graphics.setColor(r, g, b, a)
 
 				if v.node.status.hacked then
 					love.graphics.draw(
@@ -257,6 +338,16 @@ function love.draw()
 			end)		
 		love.graphics.pop()
 	love.graphics.pop()
+
+	love.graphics.setFont(ffont)
+	if player.detected then
+		love.graphics.setColor(255, 0, 0, 255)
+		love.graphics.print("Detected!", 42, 42)
+	else
+		love.graphics.setColor(0, 255, 0, 255)
+		love.graphics.print("Undetected.", 42, 42)
+	end
+	love.graphics.setColor(255, 255, 255, 255)
 end
 
 --
@@ -269,6 +360,7 @@ function love.mousereleased(x, y, button)
 		system:foreach(function(self, i,v)
 			if v.node ~= nil then
 				if v:contains(x, y, camera) then
+					sounds["click"]:play()
 					v.node:toggleSelect()
 				else
 					v.node:unselect()					
@@ -296,4 +388,14 @@ function love.keypressed(key)
 end
 
 function love.keyreleased(key)
+	if key == "escape" then
+		love.event.quit()
+	end
+	if key == " " then
+		isRunnig = not isRunnig
+	end
+	if key == "f1" then
+		local fs = love.window.getFullscreen()
+		love.window.setFullscreen(not fs)
+	end
 end

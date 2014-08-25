@@ -56,9 +56,6 @@ function SpaceObject:new(id, gfx, scale, orbit, orbitRadius, orbitSpeed, rotatio
 		local cx = self:getX() * camera.zoom.value + camera.x * camera.zoom.value
 		local cy = self:getY() * camera.zoom.value + camera.y * camera.zoom.value
 
-		print("testing if x "..x.." is between "..(cx - cwh).." and "..(cx + cwh))
-		print("testing if y "..y.." is between "..(cy - chh).." and "..(cy + chh))
-
 		local hasx = x >= cx - cwh and x <= cx + cwh
 		local hasy = y >= cy - chh and y <= cy + chh
 

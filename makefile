@@ -1,8 +1,13 @@
+name = OrBit
+
 all: repack run
 
 repack:
-	rm -f ConnecTed.love
-	zip -9qr ConnecTed.love *.lua sfx gfx lib map src
+	rm -f $(name).love
+	zip -9qr $(name).love *.lua sfx gfx lib map src
 
 run:
-	love ConnecTed.love
+	love $(name).love
+
+publish: repack
+	mv $(name).love ~/Documents/Dropbox/LD30
