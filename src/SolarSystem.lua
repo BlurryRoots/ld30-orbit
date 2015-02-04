@@ -9,7 +9,8 @@ function SolarSystem:new(centerX, centerY)
 			y = centerY or 0
 		},
 		objectList = {},
-		graph = {}
+		graph = {},
+		totalHardening = 0
 	}
 
 	nobj.getObjectByName = function (self, name)
@@ -63,11 +64,15 @@ function SolarSystem:new(centerX, centerY)
 	end
 
 	nobj.update = function (self, dt)
+		self.totalHardening = 0
+
 		self:foreach(function (self, i, v)
 			v:update(dt)
 
 			if v.node ~= nil then
 				v.node:update(dt)
+
+				self.totalHardening = self.totalHardening + v.node.hardening
 
 				if v.node.status.hacked then
 					if table.getn(v.nodeList) == 0 then

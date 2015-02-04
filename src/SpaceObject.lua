@@ -84,8 +84,24 @@ function SpaceObject:new(id, gfx, scale, orbit, orbitRadius, orbitSpeed, rotatio
 		local hw = self.img:getWidth() / 2
 		local hh = self.img:getHeight() / 2
 
+		local r, g, b = 255, 255, 255
+
+		if self.node ~= nil then
+			if self.node.status.fortified then
+				r = 0
+				g = 0
+				b = 255
+			end
+
+			if self.node.status.hacked then
+				r = 255
+				g = 255
+				b = 0
+			end
+		end
+
 		love.graphics.push()
-			love.graphics.setColorMask(true, self.green, true, true)
+			love.graphics.setColor(r, g, b, 255)
 			love.graphics.push()
 				love.graphics.draw(
 					self.img, 
@@ -95,7 +111,8 @@ function SpaceObject:new(id, gfx, scale, orbit, orbitRadius, orbitSpeed, rotatio
 					hw, hh
 				)
 			love.graphics.pop()
-			love.graphics.setColorMask(true, true, true, true)
+
+			love.graphics.setColor(255, 255, 255, 255)
 		love.graphics.pop()
 	end
 
